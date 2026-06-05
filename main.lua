@@ -1,30 +1,30 @@
-local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/rayfield/rayfield/main/source/rayfield.lua'))()
-local Player = game.Players.LocalPlayer
-local Character = Player.Character or Player.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
-local RootPart = Humanoid.RootPart
-
-local AimbotEnabled = false
-local ESPEnabled = false
-local FlyEnabled = false
-local AimbotTarget = nil
-local ESPBoxes = {}
-local BodyVelocity = nil
-local BodyGyro = nil
-
-local function CreateMenu()
+-- Hope Vision - Prison Life Script
+local success, err = pcall(function()
+    local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/rayfield/rayfield/main/source/rayfield.lua'))()
+    
+    local Player = game.Players.LocalPlayer
+    local Character = Player.Character or Player.CharacterAdded:Wait()
+    local Humanoid = Character:WaitForChild("Humanoid")
+    local RootPart = Character:WaitForChild("HumanoidRootPart")
+    
+    local AimbotEnabled = false
+    local ESPEnabled = false
+    local FlyEnabled = false
+    local ESPBoxes = {}
+    local BodyVelocity = nil
+    local BodyGyro = nil
+    
+    -- Create Window
     local HopeVision = Rayfield:CreateWindow({
         Name = "Hope Vision",
-        Color = Color3.fromRGB(255, 255, 255),
-        Background = 4,
-        BackgroundColor = Color3.fromRGB(0, 0, 0),
-        TextColor = Color3.fromRGB(255, 255, 255),
-        TextSize = 16,
-        WindowRounded = 10,
-        WindowBorder = 2,
-        Keybind = Enum.KeyCode.F1
+        LoadingTitle = "Hope Vision",
+        LoadingSubtitle = "Prison Life Script",
+        ConfigurationSaving = {
+            Enabled = false,
+        },
+        Keybind = Enum.KeyCode.F1,
     })
-
+    
     -- Aimbot Tab
     local AimbotTab = HopeVision:CreateTab("Aimbot", 4483362458)
     
@@ -33,11 +33,11 @@ local function CreateMenu()
         CurrentValue = false,
         Callback = function(value)
             AimbotEnabled = value
-        end
+        end,
     })
-
-    AimbotTab:CreateLabel("Aimbot will lock onto the nearest player")
-
+    
+    AimbotTab:CreateLabel("Targets nearest player")
+    
     -- ESP Tab
     local ESPTab = HopeVision:CreateTab("ESP", 4483362458)
     
@@ -48,17 +48,15 @@ local function CreateMenu()
             ESPEnabled = value
             if not value then
                 for _, box in pairs(ESPBoxes) do
-                    if box and box.Parent then
-                        box:Destroy()
-                    end
+                    pcall(function() box:Destroy() end)
                 end
                 ESPBoxes = {}
             end
-        end
+        end,
     })
-
-    ESPTab:CreateLabel("ESP shows player positions with boxes")
-
+    
+    ESPTab:CreateLabel("Shows player positions")
+    
     -- Fly Tab
     local FlyTab = HopeVision:CreateTab("Fly", 4483362458)
     
@@ -78,6 +76,7 @@ local function CreateMenu()
                 BodyGyro = Instance.new("BodyGyro")
                 BodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
                 BodyGyro.P = 10000
+                BodyGyro.CFrame = RootPart.CFrame
                 BodyGyro.Parent = RootPart
             else
                 Humanoid.PlatformStand = false
@@ -90,110 +89,151 @@ local function CreateMenu()
                     BodyGyro = nil
                 end
             end
-        end
+        end,
     })
-
-    FlyTab:CreateLabel("Use WASD to move, Space to go up, Ctrl to go down")
-    FlyTab:CreateLabel("Flight Speed: 50")
-
+    
+    FlyTab:CreateLabel("WASD to move")
+    FlyTab:CreateLabel("Space/Ctrl up/down")
+    
     -- Settings Tab
     local SettingsTab = HopeVision:CreateTab("Settings", 4483362458)
-    SettingsTab:CreateLabel("Hope Vision v1.0")
-    SettingsTab:CreateLabel("Press F1 to toggle menu")
-    SettingsTab:CreateLabel("Made with Rayfield UI")
-end
-
-local function Aimbot()
-    if AimbotEnabled then
-        local Target = nil
-        local ClosestDistance = math.huge
-        
-        for _, v in pairs(workspace:GetChildren()) do
-            if v:IsA("Model") and v:FindFirstChild("Humanoid") and v ~= Character then
-                if v.Humanoid.Health > 0 then
-                    local Distance = (v.Humanoid.RootPart.Position - RootPart.Position).Magnitude
-                    if Distance < ClosestDistance then
-                        ClosestDistance = Distance
-                        Target = v
+    SettingsTab:CreateLabel("Hope Vision v2.0")
+    SettingsTab:CreateLabel("Prison Life Edition")
+    SettingsTab:CreateLabel("Press F1 to toggle")
+    
+    -- Aimbot Function
+    local function UpdateAimbot()
+        if AimbotEnabled and Character and Humanoid.Health > 0 then
+            local Target = nil
+            local ClosestDistance = math.huge
+            
+            for _, v in pairs(workspace:GetChildren()) do
+                if v:IsA("Model") and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v ~= Character then
+                    local TargetHumanoid = v:FindFirstChild("Humanoid")
+                    if TargetHumanoid and TargetHumanoid.Health > 0 then
+                        local Distance = (v.HumanoidRootPart.Position - RootPart.Position).Magnitude
+                        if Distance < ClosestDistance and Distance < 100 then
+                            ClosestDistance = Distance
+                            Target = v
+                        end
                     end
                 end
             end
-        end
-        
-        if Target and Target:FindFirstChild("Humanoid") then
-            AimbotTarget = Target
-            local TargetPos = Target.Humanoid.RootPart.Position
-            Humanoid:MoveTo(TargetPos)
+            
+            if Target then
+                local TargetRoot = Target:FindFirstChild("HumanoidRootPart")
+                if TargetRoot then
+                    Humanoid:MoveTo(TargetRoot.Position)
+                end
+            end
         end
     end
-end
-
-local function ESP()
-    if ESPEnabled then
-        for _, v in pairs(workspace:GetChildren()) do
-            if v:IsA("Model") and v:FindFirstChild("Humanoid") and v ~= Character then
-                if v.Humanoid.Health > 0 then
-                    local RootPartTarget = v.Humanoid.RootPart
-                    local ExistingBox = RootPartTarget:FindFirstChild("ESPBox")
-                    
-                    if not ExistingBox then
-                        local Box = Instance.new("BoxHandleAdornment")
-                        Box.Size = RootPartTarget.Size + Vector3.new(0.2, 0.2, 0.2)
-                        Box.Adornee = RootPartTarget
-                        Box.Color3 = Color3.fromRGB(255, 255, 255)
-                        Box.Transparency = 0.3
-                        Box.AlwaysOnTop = true
-                        Box.Name = "ESPBox"
-                        Box.Parent = RootPartTarget
-                        table.insert(ESPBoxes, Box)
+    
+    -- ESP Function
+    local function UpdateESP()
+        if ESPEnabled then
+            for _, v in pairs(workspace:GetChildren()) do
+                if v:IsA("Model") and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v ~= Character then
+                    local TargetHumanoid = v:FindFirstChild("Humanoid")
+                    if TargetHumanoid and TargetHumanoid.Health > 0 then
+                        local RootPartTarget = v:FindFirstChild("HumanoidRootPart")
+                        local ExistingBox = RootPartTarget:FindFirstChild("ESPBox")
+                        
+                        if not ExistingBox then
+                            local Box = Instance.new("BoxHandleAdornment")
+                            Box.Size = RootPartTarget.Size + Vector3.new(0.5, 0.5, 0.5)
+                            Box.Adornee = RootPartTarget
+                            Box.Color3 = Color3.fromRGB(255, 255, 255)
+                            Box.Transparency = 0.5
+                            Box.AlwaysOnTop = true
+                            Box.Name = "ESPBox"
+                            Box.Parent = RootPartTarget
+                            table.insert(ESPBoxes, Box)
+                        end
                     end
                 end
             end
-        end
-    else
-        for _, box in pairs(ESPBoxes) do
-            if box and box.Parent then
-                box:Destroy()
+        else
+            for i, box in ipairs(ESPBoxes) do
+                pcall(function()
+                    if box and box.Parent then
+                        box:Destroy()
+                    end
+                end)
+                ESPBoxes[i] = nil
             end
+        end
+    end
+    
+    -- Fly Function
+    local function UpdateFly()
+        if FlyEnabled and BodyVelocity and BodyGyro and RootPart then
+            local Camera = workspace.CurrentCamera
+            local Speed = 50
+            local Velocity = Vector3.new(0, 0, 0)
+            
+            local UserInputService = game:GetService("UserInputService")
+            
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                Velocity = Velocity + (Camera.CFrame.LookVector * Speed)
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                Velocity = Velocity - (Camera.CFrame.RightVector * Speed)
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                Velocity = Velocity - (Camera.CFrame.LookVector * Speed)
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                Velocity = Velocity + (Camera.CFrame.RightVector * Speed)
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                Velocity = Velocity + Vector3.new(0, Speed, 0)
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+                Velocity = Velocity - Vector3.new(0, Speed, 0)
+            end
+            
+            BodyVelocity.Velocity = Velocity
+            BodyGyro.CFrame = Camera.CFrame
+        end
+    end
+    
+    -- Main Loop
+    local RunService = game:GetService("RunService")
+    RunService.Heartbeat:Connect(UpdateAimbot)
+    RunService.Heartbeat:Connect(UpdateESP)
+    RunService.Heartbeat:Connect(UpdateFly)
+    
+    -- Character Respawn Handler
+    Player.CharacterAdded:Connect(function(newCharacter)
+        Character = newCharacter
+        Humanoid = Character:WaitForChild("Humanoid")
+        RootPart = Character:WaitForChild("HumanoidRootPart")
+        
+        if FlyEnabled then
+            FlyEnabled = false
+            if BodyVelocity then BodyVelocity:Destroy() end
+            if BodyGyro then BodyGyro:Destroy() end
+            BodyVelocity = nil
+            BodyGyro = nil
+        end
+        
+        for _, box in pairs(ESPBoxes) do
+            pcall(function() box:Destroy() end)
         end
         ESPBoxes = {}
-    end
+    end)
+    
+    Rayfield:Notify({
+        Title = "Hope Vision",
+        Content = "Script loaded successfully!",
+        Duration = 3,
+        Image = 4483362458,
+    })
+    
+end)
+
+if not success then
+    warn("Hope Vision Error: " .. tostring(err))
+    print("Error loading Hope Vision")
 end
-
-local function Fly()
-    if FlyEnabled and BodyVelocity and BodyGyro then
-        local Camera = workspace.CurrentCamera
-        local Speed = 50
-        local Velocity = Vector3.new(0, 0, 0)
-        
-        local UserInputService = game:GetService("UserInputService")
-        
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-            Velocity = Velocity + (Camera.CFrame.LookVector * Speed)
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-            Velocity = Velocity - (Camera.CFrame.RightVector * Speed)
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
-            Velocity = Velocity - (Camera.CFrame.LookVector * Speed)
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-            Velocity = Velocity + (Camera.CFrame.RightVector * Speed)
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-            Velocity = Velocity + Vector3.new(0, Speed, 0)
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
-            Velocity = Velocity - Vector3.new(0, Speed, 0)
-        end
-        
-        BodyVelocity.Velocity = Velocity
-        BodyGyro.CFrame = workspace.CurrentCamera.CFrame
-    end
-end
-
-CreateMenu()
-
-game:GetService("RunService").Heartbeat:Connect(Aimbot)
-game:GetService("RunService").Heartbeat:Connect(ESP)
-game:GetService("RunService").Heartbeat:Connect(Fly)
